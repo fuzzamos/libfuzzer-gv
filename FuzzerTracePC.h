@@ -17,6 +17,7 @@
 #include "FuzzerValueBitMap.h"
 
 #include <set>
+#include <map>
 
 namespace fuzzer {
 
@@ -45,6 +46,25 @@ struct TableOfRecentCompares {
   Pair Table[kSize];
 };
 
+class CustomValue {
+    size_t MaxVal;
+
+    public:
+    CustomValue(void) :
+        MaxVal(0) {}
+
+    void Update(size_t newval) {
+        if ( newval > MaxVal ) {
+            printf("update from %zu to %zu\n", MaxVal, newval);
+            MaxVal = newval;
+        }
+    }
+
+    size_t GetMax(void) const {
+        return MaxVal;
+    }
+};
+
 class TracePC {
  public:
   static const size_t kNumPCs = 1 << 21;
@@ -68,6 +88,15 @@ class TracePC {
   void UpdateAllocRecord(size_t _allocRecord) {
       allocRecord = _allocRecord;
   }
+  void UpdateCustomValues(std::vector<std::pair<size_t, size_t>> *customValues) {
+      for ( auto &curVal : *customValues ) {
+          CustomValue cv;
+          localCustomValues.insert(
+                  std::pair<size_t, CustomValue>(curVal.first, cv) );
+          localCustomValues[curVal.first].Update(curVal.second);
+      }
+
+  }
   void UpdateCustomRecord(int Res) {
       if (Res < 0) {
           return;
@@ -83,6 +112,8 @@ class TracePC {
   void SetIntensityGuided(bool I) { IntensityGuided = I; }
   void SetAllocGuided(bool A) { AllocGuided = A; }
   void SetCustomGuided(bool I) { CustomGuided = I; }
+  void SetCustomFuncGuided(bool C) { CustomFuncGuided = C; }
+  bool IsCustomFuncGuided(void) { return CustomFuncGuided;}
   void SetNoCoverageGuided(bool C) { NoCoverageGuided = C; }
   void SetPrintNewPCs(bool P) { DoPrintNewPCs = P; }
   template <class Callback> void CollectFeatures(Callback CB) const;
@@ -126,6 +157,7 @@ private:
   bool IntensityGuided = false;
   bool AllocGuided = false;
   bool CustomGuided = false;
+  bool CustomFuncGuided = false;
   bool NoCoverageGuided = false;
   bool DoPrintNewPCs = false;
 
@@ -150,6 +182,7 @@ private:
   size_t codeIntensityRecord;
   size_t allocRecord = 0;
   size_t customRecord;
+  std::map<size_t, CustomValue> localCustomValues;
 };
 
 template <class Callback> // void Callback(size_t Idx, uint8_t Value);
@@ -229,6 +262,12 @@ void TracePC::CollectFeatures(Callback HandleFeature) const {
 
   if (CustomGuided) {
       HandleFeature(customRecord);
+  }
+
+  if (CustomFuncGuided) {
+      for (auto &curVal : localCustomValues) {
+          HandleFeature( curVal.second.GetMax() );
+      }
   }
 }
 
