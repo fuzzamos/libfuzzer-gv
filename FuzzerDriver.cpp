@@ -699,6 +699,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   }
 
   if (Flags.merge) {
+      TPC.SetMerge();
     if (Options.MaxLen == 0)
       F->SetMaxInputLen(kMaxSaneLen);
     if (Flags.merge_control_file)

@@ -70,6 +70,7 @@ class TracePC {
   static const size_t kNumPCs = 1 << 21;
   // How many bits of PC are used from __sanitizer_cov_trace_pc.
   static const size_t kTracePcBits = 18;
+  bool merge = false;
 
   void HandleInit(uint32_t *Start, uint32_t *Stop);
   void HandleInline8bitCountersInit(uint8_t *Start, uint8_t *Stop);
@@ -97,11 +98,18 @@ class TracePC {
       }
 
   }
+  void SetMerge(void) {
+      merge = true;
+  }
   void UpdateCustomRecord(int Res) {
       if (Res < 0) {
           return;
       }
-      if (Res > customRecord) {
+      if ( merge == false ) {
+          if ( Res > customRecord ) {
+              customRecord = (size_t)Res;
+          }
+      } else {
           customRecord = (size_t)Res;
       }
   }
